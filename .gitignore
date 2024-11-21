@@ -12,3 +12,6 @@ dist
 
 # Turbo
 .turbo
+
+# Database
+expenses.json

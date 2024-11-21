@@ -1,6 +1,6 @@
 import type { Buy, BuyParams, Exchange } from './types';
 import { config } from '../../config';
-import { createHmac } from 'crypto';
+import { createHmac } from 'node:crypto';
 import axios, { type AxiosInstance } from 'axios';
 
 type BinanceBuy = {
