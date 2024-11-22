@@ -1,15 +1,9 @@
-import type { ExpenseByCurrency, ExpensesData } from './types';
+import type { ExpensesData } from './types';
 import path from 'node:path';
 import fs from 'node:fs';
 
 export const roundAmount = (amount: number): number => {
   return Math.trunc(amount * 100) / 100;
-};
-
-export const formatAmountsToMessage = (data: ExpenseByCurrency) => {
-  return Object.entries(data)
-    .map(([currency, amount]) => `${roundAmount(amount)} ${currency}`)
-    .join('\n');
 };
 
 const FILE = path.join(__dirname, '../expenses.json');

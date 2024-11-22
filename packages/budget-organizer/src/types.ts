@@ -7,15 +7,15 @@ export type ExpenseData = {
 };
 
 export type CurrencyBeaconData = {
-  base: Currency;
-  rates: Record<Currency, number>;
+  from: Currency;
+  to: Currency;
+  amount: number;
+  value: number;
 };
-
-export type ExpenseByCurrency = Record<Currency, number>;
 
 export type ExpensesData = {
   [date: string]: {
-    expenses: ExpenseByCurrency[];
-    totals: ExpenseByCurrency;
+    expenses: number[];
+    total: number;
   };
 };
