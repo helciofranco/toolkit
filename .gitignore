@@ -14,4 +14,4 @@ dist
 .turbo
 
 # Database
-expenses.json
+expenses*.json
