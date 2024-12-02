@@ -49,10 +49,10 @@ bot.onText(/\/balance/, async (msg) => {
     const past = dayjs.tz(firstDay, config.timezone).startOf('day');
     const diff = now.diff(past, 'day') + 1;
 
-    const totalLimit = roundAmount(diff * data.budget.amount);
+    const totalLimit = diff * data.budget.amount;
     const totalRemaining = roundAmount(totalLimit - totalSpent);
 
-    const result = `💰 *Total Spent:* ${totalSpent} ${data.budget.symbol}\n💰 *Total Remaining:* ${totalRemaining} ${data.budget.symbol}\n${diff} days`;
+    const result = `💰 *Total Spent:* ${roundAmount(totalSpent)} ${data.budget.symbol}\n💰 *Total Remaining:* ${totalRemaining} ${data.budget.symbol}\n${diff} days`;
     console.log(result);
     sendTelegramMessage(chatId, result, {
       parse_mode: 'Markdown',
@@ -65,10 +65,10 @@ bot.onText(/\/balance/, async (msg) => {
     const past = dayjs.tz(firstDay, config.timezone).startOf('month');
     const diff = now.diff(past, 'month') + 1;
 
-    const totalLimit = roundAmount(diff * data.budget.amount);
+    const totalLimit = diff * data.budget.amount;
     const totalRemaining = roundAmount(totalLimit - totalSpent);
 
-    const result = `💰 *Total Spent:* ${roundAmount(totalSpent)} ${data.budget.symbol}\n💰 *Total Remaining:* ${totalRemaining} ${data.budget.symbol}\n${diff} months`;
+    const result = `;💰 *Total Spent:* ${roundAmount(totalSpent)} ${data.budget.symbol}\n💰 *Total Remaining:* ${totalRemaining} ${data.budget.symbol}\n${diff} months`;
     console.log(result);
     sendTelegramMessage(chatId, result, {
       parse_mode: 'Markdown',
