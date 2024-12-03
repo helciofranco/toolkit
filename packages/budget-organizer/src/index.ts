@@ -1,96 +1,49 @@
-import {
-  BudgetInterval,
-  type Currency,
-  type Expense,
-  type ExpensePayload,
-} from './types';
-import dayjs from 'dayjs';
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
-import { config } from './config';
-import { bot, sendTelegramMessage } from './telegram';
+import type { Currency, Expense, ExpensePayload } from './types';
+import { bot, TelegramMessager } from './telegram';
 import { getExpenses, saveExpenses } from './database';
-import { roundAmount } from './utils';
+import {
+  getAvailableBudget,
+  getBalance,
+  getSpentInCurrentInterval,
+  roundAmount,
+} from './utils';
 import { convertAmount } from './exchange';
-
-dayjs.extend(utc);
-dayjs.extend(timezone);
+import { getCurrentMonth, getToday, getUnixTimestamp } from './dates';
 
 bot.onText(/\/balance/, async (msg) => {
-  const chatId = msg.chat.id;
-  if (
-    msg.from?.username &&
-    !config.telegram.whiteList.includes(msg.from.username)
-  ) {
-    console.log(`Message not allowed from ${msg.from.username}`);
+  const messager = new TelegramMessager(msg);
+  if (messager.isUserWhitelisted()) {
+    console.log(`Message not allowed from ${msg.from?.username}`);
     return;
   }
 
+  const chatId = msg.chat.id;
   const data = getExpenses(chatId);
   if (!data) {
-    sendTelegramMessage(
-      chatId,
-      `📭 No expenses found for this chatId\n${chatId}`,
-      {
-        parse_mode: 'Markdown',
-      },
-    );
+    messager.send(`📭 No expenses found for this chatId\n${chatId}`);
     return;
   }
 
-  const firstDay = Object.keys(data.expenses)[0];
-  const totalSpent = Object.values(data.expenses).reduce((acc, expense) => {
-    return acc + expense.total;
-  }, 0);
+  const { spent, remaining, diff, term } = getBalance(data);
 
-  // Daily interval
-  if (data.budget.interval === BudgetInterval.Daily) {
-    const now = dayjs().tz(config.timezone).startOf('day');
-    const past = dayjs.tz(firstDay, config.timezone).startOf('day');
-    const diff = now.diff(past, 'day') + 1;
-
-    const totalLimit = diff * data.budget.amount;
-    const totalRemaining = roundAmount(totalLimit - totalSpent);
-
-    const result = `💰 *Total Spent:* ${roundAmount(totalSpent)} ${data.budget.symbol}\n💰 *Total Remaining:* ${totalRemaining} ${data.budget.symbol}\n${diff} days`;
-    console.log(result);
-    sendTelegramMessage(chatId, result, {
-      parse_mode: 'Markdown',
-    });
-  }
-
-  // Monthly interval
-  if (data.budget.interval === BudgetInterval.Monthly) {
-    const now = dayjs().tz(config.timezone).startOf('month');
-    const past = dayjs.tz(firstDay, config.timezone).startOf('month');
-    const diff = now.diff(past, 'month') + 1;
-
-    const totalLimit = diff * data.budget.amount;
-    const totalRemaining = roundAmount(totalLimit - totalSpent);
-
-    const result = `;💰 *Total Spent:* ${roundAmount(totalSpent)} ${data.budget.symbol}\n💰 *Total Remaining:* ${totalRemaining} ${data.budget.symbol}\n${diff} months`;
-    console.log(result);
-    sendTelegramMessage(chatId, result, {
-      parse_mode: 'Markdown',
-    });
-  }
+  const result = `💰 *Total Spent:* ${roundAmount(spent)} ${data.budget.symbol}\n💰 *Total Remaining:* ${remaining} ${data.budget.symbol}\n${diff} ${term}`;
+  console.log(result);
+  messager.send(result);
 });
 
 bot.onText(/\/today/, async (msg) => {
-  const chatId = msg.chat.id;
-  if (
-    msg.from?.username &&
-    !config.telegram.whiteList.includes(msg.from.username)
-  ) {
-    console.log(`Message not allowed from ${msg.from.username}`);
+  const messager = new TelegramMessager(msg);
+  if (messager.isUserWhitelisted()) {
+    console.log(`Message not allowed from ${msg.from?.username}`);
     return;
   }
 
-  const today = dayjs().tz(config.timezone).format('YYYY-MM-DD');
+  const today = getToday();
+  const chatId = msg.chat.id;
   const data = getExpenses(chatId);
 
   if (!data || !data.expenses[today] || !data.expenses[today].items.length) {
-    sendTelegramMessage(chatId, '📭 No expenses found for today');
+    messager.send('📭 No expenses found for today');
     return;
   }
 
@@ -106,26 +59,73 @@ bot.onText(/\/today/, async (msg) => {
       '\n',
     )}\n\n💰 *Today:* ${todayTotal} ${data.budget.symbol}\n🏦 *Available:* ${remaining} ${data.budget.symbol}`;
   console.log(result);
-  sendTelegramMessage(chatId, result, {
-    parse_mode: 'Markdown',
-  });
+  messager.send(result);
 });
 
-bot.onText(/\/undo/, async (msg) => {
-  const chatId = msg.chat.id;
-  if (
-    msg.from?.username &&
-    !config.telegram.whiteList.includes(msg.from.username)
-  ) {
-    console.log(`Message not allowed from ${msg.from.username}`);
+bot.onText(/\/month/, async (msg) => {
+  const messager = new TelegramMessager(msg);
+  if (messager.isUserWhitelisted()) {
+    console.log(`Message not allowed from ${msg.from?.username}`);
     return;
   }
 
-  const today = dayjs().tz(config.timezone).format('YYYY-MM-DD');
+  const chatId = msg.chat.id;
+  const data = getExpenses(chatId);
+  if (!data || !data.expenses) {
+    messager.send(`📭 No expenses found for this chatId\n${chatId}`);
+    return;
+  }
+
+  const currentMonth = getCurrentMonth();
+  const currentMonthKeys = Object.keys(data.expenses).filter((date) => {
+    return (
+      date.startsWith(currentMonth) && Boolean(data.expenses[date].items.length)
+    );
+  });
+
+  if (!currentMonthKeys.length) {
+    messager.send('📭 No expenses found for this month');
+    return;
+  }
+
+  const expenses = currentMonthKeys.flatMap((date) => {
+    const items = data.expenses[date].items;
+    return items;
+  });
+
+  const totalSpent = currentMonthKeys.reduce((acc, date) => {
+    const expenses = data.expenses[date];
+    return acc + expenses.total;
+  }, 0);
+
+  const availableBudget = getAvailableBudget(data);
+  const remaining = roundAmount(availableBudget - totalSpent);
+
+  const result = `${expenses
+    .map(
+      (e) =>
+        `💸 ${e.to.amount} ${e.to.symbol} (${e.from.amount} ${e.from.symbol}) - ${e.description}`,
+    )
+    .join(
+      '\n',
+    )}\n\n💰 *Month:* ${roundAmount(totalSpent)} ${data.budget.symbol}\n🏦 *Available:* ${remaining} ${data.budget.symbol}`;
+  console.log(result);
+  messager.send(result);
+});
+
+bot.onText(/\/undo/, async (msg) => {
+  const messager = new TelegramMessager(msg);
+  if (messager.isUserWhitelisted()) {
+    console.log(`Message not allowed from ${msg.from?.username}`);
+    return;
+  }
+
+  const chatId = msg.chat.id;
+  const today = getToday();
   const data = getExpenses(chatId);
 
   if (!data || !data.expenses[today]) {
-    sendTelegramMessage(chatId, '📭 No expenses found for today');
+    messager.send('📭 No expenses found for today');
     return;
   }
 
@@ -133,7 +133,7 @@ bot.onText(/\/undo/, async (msg) => {
   const lastExpense = data.expenses[today].items.pop();
 
   if (!lastExpense) {
-    sendTelegramMessage(chatId, '📭 No expenses found for today');
+    messager.send('📭 No expenses found for today');
     return;
   }
 
@@ -142,31 +142,24 @@ bot.onText(/\/undo/, async (msg) => {
     data.expenses[today].total - lastExpense.to.amount,
   );
 
-  // Ensure the total doesn't go negative (in case of bad data)
   if (data.expenses[today].total < 0) {
+    // Ensure the total doesn't go negative (in case of bad data)
     data.expenses[today].total = 0;
   }
 
   saveExpenses(chatId, data);
 
-  const remaining = roundAmount(
-    data.budget.amount - data.expenses[today].total,
-  );
-
-  const result = `🗑️ *Removed:* ${lastExpense.description} ${lastExpense.to.amount} ${lastExpense.to.symbol}\n💰 *Today:* ${data.expenses[today].total} ${data.budget.symbol}\n🏦 *Available:* ${remaining} ${data.budget.symbol}`;
+  // Log
+  const { name, spent, remaining } = getSpentInCurrentInterval(data);
+  const result = `🗑️ *Removed:* ${lastExpense.description} ${lastExpense.to.amount} ${lastExpense.to.symbol}\n💰 *${name}:* ${spent} ${data.budget.symbol}\n🏦 *Available:* ${remaining} ${data.budget.symbol}`;
   console.log(result);
-  sendTelegramMessage(chatId, result, {
-    parse_mode: 'Markdown',
-  });
+  messager.send(result);
 });
 
 bot.onText(/^(.+?)\s([A-Za-z]{3})(?:\s(.+))?$/, async (msg, match) => {
-  const chatId = msg.chat.id;
-  if (
-    msg.from?.username &&
-    !config.telegram.whiteList.includes(msg.from.username)
-  ) {
-    console.log(`Message not allowed from ${msg.from.username}`);
+  const messager = new TelegramMessager(msg);
+  if (messager.isUserWhitelisted()) {
+    console.log(`Message not allowed from ${msg.from?.username}`);
     return;
   }
 
@@ -179,14 +172,13 @@ bot.onText(/^(.+?)\s([A-Za-z]{3})(?:\s(.+))?$/, async (msg, match) => {
     symbol: symbol as Currency,
     description: description || '',
   };
-  const today = dayjs().tz(config.timezone).format('YYYY-MM-DD');
+  const today = getToday();
+
+  const chatId = msg.chat.id;
   const data = getExpenses(chatId);
 
   if (!data) {
-    sendTelegramMessage(
-      chatId,
-      `📭 Create the database for this chatId\n${chatId}`,
-    );
+    messager.send(`📭 Create the database for this chatId\n${chatId}`);
     return;
   }
 
@@ -211,7 +203,7 @@ bot.onText(/^(.+?)\s([A-Za-z]{3})(?:\s(.+))?$/, async (msg, match) => {
 
   // Save expenses
   const expense: Expense = {
-    timestamp: dayjs().unix(),
+    timestamp: getUnixTimestamp(),
     from: {
       symbol: payload.symbol,
       amount: payload.amount,
@@ -226,43 +218,9 @@ bot.onText(/^(.+?)\s([A-Za-z]{3})(?:\s(.+))?$/, async (msg, match) => {
   data.expenses[today].total += paid;
   saveExpenses(chatId, data);
 
-  // Get available based on budget interval (daily or monthly)
-  if (data.budget.interval === BudgetInterval.Daily) {
-    const remaining = roundAmount(
-      data.budget.amount - data.expenses[today].total,
-    );
-    const result = `💸 *Paid:* ${paid} ${data.budget.symbol}\n💰 *Today:* ${data.expenses[today].total} ${data.budget.symbol}\n🏦 *Available:* ${remaining} ${data.budget.symbol}`;
-    console.log(result);
-    sendTelegramMessage(chatId, result, {
-      parse_mode: 'Markdown',
-    });
-    return;
-  }
-
-  // Monthly
-  if (data.budget.interval === BudgetInterval.Monthly) {
-    const currentMonth = dayjs().tz(config.timezone).format('YYYY-MM');
-    const currentMonthKeys = Object.keys(data.expenses).filter((date) =>
-      date.startsWith(currentMonth),
-    );
-
-    const totalSpent = currentMonthKeys.reduce((acc, date) => {
-      const expenses = data.expenses[date];
-      return acc + expenses.total;
-    }, 0);
-
-    const remaining = roundAmount(data.budget.amount - totalSpent);
-
-    const result = `💸 *Paid:* ${paid} ${data.budget.symbol}\n💰 *Month:* ${roundAmount(totalSpent)} ${data.budget.symbol}\n🏦 *Available:* ${remaining} ${data.budget.symbol}`;
-    console.log(result);
-    sendTelegramMessage(chatId, result, {
-      parse_mode: 'Markdown',
-    });
-    return;
-  }
-
-  sendTelegramMessage(
-    chatId,
-    `📭 Interval not supported: ${data.budget.interval}`,
-  );
+  // Log
+  const { name, spent, remaining } = getSpentInCurrentInterval(data);
+  const result = `💸 *Paid:* ${paid} ${data.budget.symbol}\n💰 *${name}:* ${spent} ${data.budget.symbol}\n🏦 *Available:* ${remaining} ${data.budget.symbol}`;
+  console.log(result);
+  messager.send(result);
 });
