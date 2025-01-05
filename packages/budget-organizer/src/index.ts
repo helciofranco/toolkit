@@ -105,7 +105,7 @@ bot.onText(/\/month/, async (msg) => {
   const result = `${expenses
     .map(
       (e) =>
-        `💸 ${e.to.amount} ${e.to.symbol} (${e.from.amount} ${e.from.symbol}) - ${e.description}`,
+        `💸 ${fromCents(e.to.amount)} ${e.to.symbol} (${fromCents(e.from.amount)} ${e.from.symbol}) - ${e.description}`,
     )
     .join(
       '\n',
