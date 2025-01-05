@@ -2,10 +2,11 @@ import type { Currency, Expense, ExpensePayload } from './types';
 import { bot, TelegramMessager } from './telegram';
 import { getExpenses, saveExpenses } from './database';
 import {
+  fromCents,
   getAvailableBudget,
   getBalance,
   getSpentInCurrentInterval,
-  roundAmount,
+  toCents,
 } from './utils';
 import { convertAmount } from './exchange';
 import { getCurrentMonth, getToday, getUnixTimestamp } from './dates';
@@ -26,7 +27,7 @@ bot.onText(/\/balance/, async (msg) => {
 
   const { spent, remaining, diff, term } = getBalance(data);
 
-  const result = `💰 *Total Spent:* ${roundAmount(spent)} ${data.budget.symbol}\n💰 *Total Remaining:* ${remaining} ${data.budget.symbol}\n${diff} ${term}`;
+  const result = `💰 *Total Spent:* ${spent} ${data.budget.symbol}\n💰 *Total Remaining:* ${remaining} ${data.budget.symbol}\n${diff} ${term}`;
   console.log(result);
   messager.send(result);
 });
@@ -48,16 +49,16 @@ bot.onText(/\/today/, async (msg) => {
   }
 
   const todayTotal = data.expenses[today].total;
-  const remaining = roundAmount(data.budget.amount - todayTotal);
+  const remaining = fromCents(data.budget.amount - todayTotal);
 
   const result = `${data.expenses[today].items
     .map(
       (e) =>
-        `💸 ${e.to.amount} ${e.to.symbol} (${e.from.amount} ${e.from.symbol}) - ${e.description}`,
+        `💸 ${fromCents(e.to.amount)} ${e.to.symbol} (${fromCents(e.from.amount)} ${e.from.symbol}) - ${e.description}`,
     )
     .join(
       '\n',
-    )}\n\n💰 *Today:* ${todayTotal} ${data.budget.symbol}\n🏦 *Available:* ${remaining} ${data.budget.symbol}`;
+    )}\n\n💰 *Today:* ${fromCents(todayTotal)} ${data.budget.symbol}\n🏦 *Available:* ${remaining} ${data.budget.symbol}`;
   console.log(result);
   messager.send(result);
 });
@@ -99,7 +100,7 @@ bot.onText(/\/month/, async (msg) => {
   }, 0);
 
   const availableBudget = getAvailableBudget(data);
-  const remaining = roundAmount(availableBudget - totalSpent);
+  const remaining = fromCents(availableBudget - totalSpent);
 
   const result = `${expenses
     .map(
@@ -108,7 +109,7 @@ bot.onText(/\/month/, async (msg) => {
     )
     .join(
       '\n',
-    )}\n\n💰 *Month:* ${roundAmount(totalSpent)} ${data.budget.symbol}\n🏦 *Available:* ${remaining} ${data.budget.symbol}`;
+    )}\n\n💰 *Month:* ${fromCents(totalSpent)} ${data.budget.symbol}\n🏦 *Available:* ${remaining} ${data.budget.symbol}`;
   console.log(result);
   messager.send(result);
 });
@@ -138,9 +139,8 @@ bot.onText(/\/undo/, async (msg) => {
   }
 
   // Update the total
-  data.expenses[today].total = roundAmount(
-    data.expenses[today].total - lastExpense.to.amount,
-  );
+  data.expenses[today].total =
+    data.expenses[today].total - lastExpense.to.amount;
 
   if (data.expenses[today].total < 0) {
     // Ensure the total doesn't go negative (in case of bad data)
@@ -151,7 +151,7 @@ bot.onText(/\/undo/, async (msg) => {
 
   // Log
   const { name, spent, remaining } = getSpentInCurrentInterval(data);
-  const result = `🗑️ *Removed:* ${lastExpense.description} ${lastExpense.to.amount} ${lastExpense.to.symbol}\n💰 *${name}:* ${spent} ${data.budget.symbol}\n🏦 *Available:* ${remaining} ${data.budget.symbol}`;
+  const result = `🗑️ *Removed:* ${lastExpense.description} ${fromCents(lastExpense.to.amount)} ${lastExpense.to.symbol}\n💰 *${name}:* ${spent} ${data.budget.symbol}\n🏦 *Available:* ${remaining} ${data.budget.symbol}`;
   console.log(result);
   messager.send(result);
 });
@@ -164,11 +164,12 @@ bot.onText(/^(.+?)\s([A-Za-z]{3})(?:\s(.+))?$/, async (msg, match) => {
   }
 
   if (!match) return;
-  const [, amount, _symbol, description] = match;
+  const [, _amount, _symbol, description] = match;
   const symbol = _symbol.toUpperCase() as Currency;
+  const amount = Number(_amount.replace(',', '.'));
 
   const payload: ExpensePayload = {
-    amount: roundAmount(Number(amount)),
+    amount: Number.isNaN(amount) ? 0 : amount,
     symbol: symbol as Currency,
     description: description || '',
   };
@@ -190,7 +191,7 @@ bot.onText(/^(.+?)\s([A-Za-z]{3})(?:\s(.+))?$/, async (msg, match) => {
     };
   }
 
-  let paid = payload.amount;
+  let paid = toCents(payload.amount);
   if (payload.symbol !== data.budget.symbol) {
     const { value } = await convertAmount({
       from: payload.symbol,
@@ -198,7 +199,7 @@ bot.onText(/^(.+?)\s([A-Za-z]{3})(?:\s(.+))?$/, async (msg, match) => {
       to: data.budget.symbol,
     });
 
-    paid = roundAmount(value);
+    paid = toCents(value);
   }
 
   // Save expenses
@@ -206,7 +207,7 @@ bot.onText(/^(.+?)\s([A-Za-z]{3})(?:\s(.+))?$/, async (msg, match) => {
     timestamp: getUnixTimestamp(),
     from: {
       symbol: payload.symbol,
-      amount: payload.amount,
+      amount: toCents(payload.amount),
     },
     to: {
       symbol: data.budget.symbol,
@@ -220,7 +221,7 @@ bot.onText(/^(.+?)\s([A-Za-z]{3})(?:\s(.+))?$/, async (msg, match) => {
 
   // Log
   const { name, spent, remaining } = getSpentInCurrentInterval(data);
-  const result = `💸 *Paid:* ${paid} ${data.budget.symbol}\n💰 *${name}:* ${spent} ${data.budget.symbol}\n🏦 *Available:* ${remaining} ${data.budget.symbol}`;
+  const result = `💸 *Paid:* ${fromCents(paid)} ${data.budget.symbol}\n💰 *${name}:* ${spent} ${data.budget.symbol}\n🏦 *Available:* ${remaining} ${data.budget.symbol}`;
   console.log(result);
   messager.send(result);
 });

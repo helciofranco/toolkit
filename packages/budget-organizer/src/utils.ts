@@ -2,9 +2,8 @@ import { BudgetInterval, type ExpensesData } from './types';
 import { getCurrentMonth, getDaysInMonth, getStartOf, getToday } from './dates';
 import { nameByInterval } from './labels';
 
-export const roundAmount = (amount: number): number => {
-  return Math.trunc(amount * 100) / 100;
-};
+export const toCents = (amount: number): number => Math.trunc(amount * 100);
+export const fromCents = (amount: number): string => (amount / 100).toFixed(2);
 
 export const getAvailableBudget = (data: ExpensesData): number => {
   if (data.budget.interval === BudgetInterval.Monthly) {
@@ -28,11 +27,11 @@ export const getBalance = (data: ExpensesData) => {
     const diff = now.diff(past, 'day') + 1;
 
     const available = diff * data.budget.amount;
-    const remaining = roundAmount(available - spent);
+    const remaining = available - spent;
 
     return {
-      spent,
-      remaining,
+      spent: fromCents(spent),
+      remaining: fromCents(remaining),
       diff,
       term: 'days',
     };
@@ -44,11 +43,11 @@ export const getBalance = (data: ExpensesData) => {
   const diff = now.diff(past, 'month') + 1;
 
   const available = diff * data.budget.amount;
-  const remaining = roundAmount(available - spent);
+  const remaining = available - spent;
 
   return {
-    spent,
-    remaining,
+    spent: fromCents(spent),
+    remaining: fromCents(remaining),
     diff,
     term: 'months',
   };
@@ -64,8 +63,8 @@ export const getSpentInCurrentInterval = (data: ExpensesData) => {
 
     return {
       name: nameByInterval[data.budget.interval],
-      spent: roundAmount(spent),
-      remaining: roundAmount(remaining),
+      spent: fromCents(spent),
+      remaining: fromCents(remaining),
     };
   }
 
@@ -84,7 +83,7 @@ export const getSpentInCurrentInterval = (data: ExpensesData) => {
 
   return {
     name: nameByInterval[data.budget.interval],
-    spent: roundAmount(spent),
-    remaining: roundAmount(remaining),
+    spent: fromCents(spent),
+    remaining: fromCents(remaining),
   };
 };
