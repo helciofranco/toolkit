@@ -11,7 +11,7 @@ dotenv.config();
 const telegramService = new TelegramService(
   process.env.TELEGRAM_CHAT_ID || '',
   process.env.TELEGRAM_BOT_TOKEN || '',
-  process.env.TELEGRAM_ENABLED === 'true',
+  process.env.TELEGRAM_ENABLED === 'true'
 );
 const app = express();
 const PORT = 3000;
@@ -42,7 +42,11 @@ function handleAlchemy(data: AlchemyWebhookData) {
 
   const activities = data.event.activity
     .map((activity) => {
-      return `From [${getShortAddress(activity.fromAddress)}](${explorerUrl}/address/${activity.fromAddress}) to [${getShortAddress(activity.toAddress)}](${explorerUrl}/address/${activity.toAddress})
+      return `From [${getShortAddress(
+        activity.fromAddress
+      )}](${explorerUrl}/address/${activity.fromAddress}) to [${getShortAddress(
+        activity.toAddress
+      )}](${explorerUrl}/address/${activity.toAddress})
 💰 ${activity.value} ${activity.asset}
 🌐 [View on explorer](${explorerUrl}/tx/${activity.hash})`;
     })
