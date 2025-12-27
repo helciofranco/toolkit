@@ -1,19 +1,69 @@
-### How to get your telegram bot token
+# @helciofranco/toolkit
 
-You can use the [@BotFather](https://t.me/BotFather) to create a new bot.
-It's a wizard straightforward to create a new bot.
+A Bun-based monorepo containing blockchain monitoring and notification services.
 
-### How to get your telegram chat id
+## Overview
 
-Now, from your Telegram personal account, send a message to your bot in order to get the `chat_id`.
+This toolkit consists of three packages:
 
-curl -s https://api.telegram.org/botYOUR_BOT_TOKEN/getUpdates
-It's the result[0].message.chat.id
+- **[@helciofranco/telegram](packages/telegram)** - Shared Telegram notification service
+- **[@helciofranco/fuel](packages/fuel)** - Fuel network indexer health monitoring
+- **[@helciofranco/webhooks](packages/webhooks)** - Webhook listeners for blockchain events
 
-### How to create your Binance API keys
+## Prerequisites
 
-> Please note that before creating an API Key, you need to make a deposit of any amount to your Spot Wallet to activate your account and complete identity verification.
+- [Bun](https://bun.sh/) 1.x or later
+- A Telegram bot (see [Setup Guide](#telegram-setup))
 
-Go to [Binance](https://www.binance.com/en/support/faq/how-to-create-api-keys-on-binance-360002502072) and create a new API key.
+## Quick Start
 
-You need to restrict by IP address in order to enable "Spot & Margin Trading".
+```bash
+# Install dependencies
+bun install
+
+# Build all packages
+bun run build
+
+# Format code
+bun run format
+
+# Type check
+bun run ts:check
+```
+
+## Setup Guide
+
+### Telegram Setup
+
+1. **Create a bot** using [@BotFather](https://t.me/BotFather):
+   - Send `/newbot` to BotFather
+   - Follow the wizard to create your bot
+   - Save the bot token provided
+
+2. **Get your chat ID**:
+   - Send a message to your bot from your Telegram account
+   - Run this command:
+     ```bash
+     curl -s https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates
+     ```
+   - Find `result[0].message.chat.id` in the response
+
+3. **Configure environment variables**:
+   ```bash
+   TELEGRAM_BOT_TOKEN=your_bot_token_here
+   TELEGRAM_CHAT_ID=your_chat_id_here
+   TELEGRAM_ENABLED=true
+   ```
+
+## Project Structure
+
+```
+.
+├── packages/
+│   ├── fuel/          # Fuel indexer monitoring service
+│   ├── telegram/      # Shared Telegram notification library
+│   └── webhooks/      # Blockchain webhook listeners
+├── package.json       # Workspace configuration
+├── bunfig.toml       # Bun configuration
+└── README.md         # This file
+```

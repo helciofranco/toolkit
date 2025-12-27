@@ -1,25 +1,19 @@
 {
-  "name": "bot-crypto-dca",
+  "name": "toolkit",
   "version": "1.0.0",
   "author": "Hélcio Franco",
   "license": "MIT",
-  "main": "index.js",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "build": "turbo build",
-    "start": "turbo start",
-    "dev": "turbo dev",
-    "ts:check": "turbo ts:check"
+    "build": "bun run --filter=* build",
+    "format": "bun run --filter=* format",
+    "ts:check": "bun run --filter=* ts:check"
   },
-  "dependencies": {},
   "devDependencies": {
-    "@biomejs/biome": "1.8.3",
-    "@types/node": "22.1.0",
-    "turbo": "2.0.14",
+    "@types/bun": "1.2.8",
+    "prettier": "3.7.4",
     "typescript": "5.5.4"
-  },
-  "packageManager": "pnpm@9.4.0",
-  "engines": {
-    "node": ">=20.11.0",
-    "pnpm": ">=9.4.0"
   }
 }

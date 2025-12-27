@@ -1,4 +1,3 @@
-import dotenv from 'dotenv';
 import express, { type Request, type Response } from 'express';
 import bodyParser from 'body-parser';
 import type { AlchemyWebhookData, PayoutWebhookData } from './types';
@@ -6,12 +5,10 @@ import { TelegramService } from '@helciofranco/telegram';
 import { explorersUrl, networksName } from './constants';
 import { getShortAddress } from './utils';
 
-dotenv.config();
-
 const telegramService = new TelegramService(
   process.env.TELEGRAM_CHAT_ID || '',
   process.env.TELEGRAM_BOT_TOKEN || '',
-  process.env.TELEGRAM_ENABLED === 'true',
+  process.env.TELEGRAM_ENABLED === 'true'
 );
 const app = express();
 const PORT = 3000;
@@ -42,7 +39,11 @@ function handleAlchemy(data: AlchemyWebhookData) {
 
   const activities = data.event.activity
     .map((activity) => {
-      return `From [${getShortAddress(activity.fromAddress)}](${explorerUrl}/address/${activity.fromAddress}) to [${getShortAddress(activity.toAddress)}](${explorerUrl}/address/${activity.toAddress})
+      return `From [${getShortAddress(
+        activity.fromAddress
+      )}](${explorerUrl}/address/${activity.fromAddress}) to [${getShortAddress(
+        activity.toAddress
+      )}](${explorerUrl}/address/${activity.toAddress})
 💰 ${activity.value} ${activity.asset}
 🌐 [View on explorer](${explorerUrl}/tx/${activity.hash})`;
     })

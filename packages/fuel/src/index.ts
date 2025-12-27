@@ -1,4 +1,3 @@
-import dotenv from 'dotenv';
 import express, { type Request, type Response } from 'express';
 import bodyParser from 'body-parser';
 import { TelegramService } from '@helciofranco/telegram';
@@ -6,12 +5,10 @@ import axios from 'axios';
 import type { ChainInfoData, IndexerBlocksData } from './types';
 import { getLatestBlock, getLatestSyncedBlock } from './constants';
 
-dotenv.config();
-
 const telegramService = new TelegramService(
   process.env.TELEGRAM_CHAT_ID || '',
   process.env.TELEGRAM_BOT_TOKEN || '',
-  process.env.TELEGRAM_ENABLED === 'true',
+  process.env.TELEGRAM_ENABLED === 'true'
 );
 const app = express();
 const PORT = 3002;
@@ -32,7 +29,7 @@ app.get('/indexer/mainnet', async (_req: Request, res: Response) => {
             'Content-Type': 'application/json',
             Authorization: `Basic ${process.env.FUEL_CORE_API_KEY || ''}`,
           },
-        },
+        }
       ),
       axios.post<IndexerBlocksData>(
         process.env.FUEL_INDEXER_URL || '',
@@ -45,7 +42,7 @@ app.get('/indexer/mainnet', async (_req: Request, res: Response) => {
             'x-api-key': `Bearer ${process.env.FUEL_INDEXER_API_KEY || ''}`,
             Authorization: `Basic ${process.env.FUEL_CORE_API_KEY || ''}`,
           },
-        },
+        }
       ),
     ]);
 
@@ -74,6 +71,6 @@ app.get('/indexer/mainnet', async (_req: Request, res: Response) => {
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
   telegramService.sendMessage(
-    '🚀 Fuel Indexer Healthchecker have been started',
+    '🚀 Fuel Indexer Healthchecker have been started'
   );
 });
