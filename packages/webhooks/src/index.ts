@@ -1,12 +1,9 @@
-import dotenv from 'dotenv';
 import express, { type Request, type Response } from 'express';
 import bodyParser from 'body-parser';
 import type { AlchemyWebhookData, PayoutWebhookData } from './types';
 import { TelegramService } from '@helciofranco/telegram';
 import { explorersUrl, networksName } from './constants';
 import { getShortAddress } from './utils';
-
-dotenv.config();
 
 const telegramService = new TelegramService(
   process.env.TELEGRAM_CHAT_ID || '',

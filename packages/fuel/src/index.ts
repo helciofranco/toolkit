@@ -1,12 +1,9 @@
-import dotenv from 'dotenv';
 import express, { type Request, type Response } from 'express';
 import bodyParser from 'body-parser';
 import { TelegramService } from '@helciofranco/telegram';
 import axios from 'axios';
 import type { ChainInfoData, IndexerBlocksData } from './types';
 import { getLatestBlock, getLatestSyncedBlock } from './constants';
-
-dotenv.config();
 
 const telegramService = new TelegramService(
   process.env.TELEGRAM_CHAT_ID || '',
