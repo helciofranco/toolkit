@@ -7,7 +7,6 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "bun run --filter=* build",
     "format": "bun run --filter=* format",
     "ts:check": "bun run --filter=* ts:check"
   },
