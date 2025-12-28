@@ -21,9 +21,6 @@ This toolkit consists of three packages:
 # Install dependencies
 bun install
 
-# Build all packages
-bun run build
-
 # Format code
 bun run format
 
