@@ -1,5 +1,5 @@
 module.exports = {
-  title: 'webhooks',
+  name: 'fuel',
   script: 'src/index.ts',
   interpreter: 'bun',
   env: {
