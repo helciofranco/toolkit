@@ -1,5 +1,5 @@
 module.exports = {
-  title: 'webhooks',
+  name: 'webhooks',
   script: 'src/index.ts',
   interpreter: 'bun',
   env: {
