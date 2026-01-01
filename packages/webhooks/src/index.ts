@@ -2,8 +2,9 @@ import express, { type Request, type Response } from 'express';
 import bodyParser from 'body-parser';
 import type { AlchemyWebhookData, PayoutWebhookData } from './types';
 import { TelegramService } from '@helciofranco/telegram';
-import { explorersUrl, networksName } from './constants';
+import { EXPLORERS_URL, NETWORKS_NAME, VERIFIED_CONTRACTS } from './constants';
 import { getShortAddress } from './utils';
+import { isSameHex } from './utils/isSameHex';
 
 const telegramService = new TelegramService(
   process.env.TELEGRAM_CHAT_ID || '',
@@ -34,10 +35,18 @@ function handleBlindpay(data: PayoutWebhookData) {
 }
 
 function handleAlchemy(data: AlchemyWebhookData) {
-  const explorerUrl = explorersUrl[data.event.network];
-  const networkName = networksName[data.event.network];
+  const explorerUrl = EXPLORERS_URL[data.event.network];
+  const networkName = NETWORKS_NAME[data.event.network];
+  const verifiedContracts = VERIFIED_CONTRACTS[data.event.network];
 
   const activities = data.event.activity
+    .filter((activity) => {
+      const isVerifiedToken = verifiedContracts.some((contract) => {
+        return isSameHex(contract, activity.rawContract?.address);
+      });
+      const isBaseAsset = ['external', 'internal'].includes(activity.category);
+      return isVerifiedToken || isBaseAsset;
+    })
     .map((activity) => {
       return `From [${getShortAddress(
         activity.fromAddress
@@ -48,6 +57,10 @@ function handleAlchemy(data: AlchemyWebhookData) {
 🌐 [View on explorer](${explorerUrl}/tx/${activity.hash})`;
     })
     .join('\n\n');
+
+  if (activities.length === 0) {
+    return;
+  }
 
   telegramService.sendMessage(`*${networkName}*\n\n${activities}`);
 }
