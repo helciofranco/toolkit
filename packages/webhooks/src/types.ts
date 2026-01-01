@@ -33,6 +33,10 @@ type AlchemyWebhookActivity = {
   toAddress: `0x${string}`;
   value: number;
   asset: string;
+  category: 'external' | 'internal' | 'token';
+  rawContract?: {
+    address: `0x${string}`;
+  };
 };
 
 export type AlchemyWebhookData = {
