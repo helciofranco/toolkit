@@ -2,7 +2,7 @@ import express, { type Request, type Response } from 'express';
 import bodyParser from 'body-parser';
 import type { AlchemyWebhookData, PayoutWebhookData } from './types';
 import { TelegramService } from '@helciofranco/telegram';
-import { EXPLORERS_URL, NETWORKS_NAME, VERIFIED_CONTRACTS } from './constants';
+import { NETWORKS } from './constants';
 import { getShortAddress } from './utils';
 import { isSameHex } from './utils/isSameHex';
 
@@ -35,26 +35,32 @@ function handleBlindpay(data: PayoutWebhookData) {
 }
 
 function handleAlchemy(data: AlchemyWebhookData) {
-  const explorerUrl = EXPLORERS_URL[data.event.network];
-  const networkName = NETWORKS_NAME[data.event.network];
-  const verifiedContracts = VERIFIED_CONTRACTS[data.event.network];
+  const network = NETWORKS[data.event.network];
 
   const activities = data.event.activity
     .filter((activity) => {
-      const isVerifiedToken = verifiedContracts.some((contract) => {
-        return isSameHex(contract, activity.rawContract?.address);
+      const asset = network.assets.find((a) => {
+        // ETH
+        if (a.address === '0x') {
+          return ['external', 'internal'].includes(activity.category);
+        }
+
+        // Verified Tokens
+        return isSameHex(a.address, activity.rawContract?.address);
       });
-      const isBaseAsset = ['external', 'internal'].includes(activity.category);
-      return isVerifiedToken || isBaseAsset;
+
+      if (!asset) return false;
+
+      return activity.value >= asset.minAmount;
     })
     .map((activity) => {
       return `From [${getShortAddress(
         activity.fromAddress
-      )}](${explorerUrl}/address/${activity.fromAddress}) to [${getShortAddress(
+      )}](${network.explorerUrl}/address/${activity.fromAddress}) to [${getShortAddress(
         activity.toAddress
-      )}](${explorerUrl}/address/${activity.toAddress})
+      )}](${network.explorerUrl}/address/${activity.toAddress})
 💰 ${activity.value} ${activity.asset}
-🌐 [View on explorer](${explorerUrl}/tx/${activity.hash})`;
+🌐 [View on explorer](${network.explorerUrl}/tx/${activity.hash})`;
     })
     .join('\n\n');
 
@@ -62,7 +68,7 @@ function handleAlchemy(data: AlchemyWebhookData) {
     return;
   }
 
-  telegramService.sendMessage(`*${networkName}*\n\n${activities}`);
+  telegramService.sendMessage(`*${network.name}*\n\n${activities}`);
 }
 
 app.listen(PORT, () => {

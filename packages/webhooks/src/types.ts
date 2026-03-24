@@ -45,3 +45,15 @@ export type AlchemyWebhookData = {
     activity: AlchemyWebhookActivity[];
   };
 };
+
+export type NetworkAsset = {
+  symbol: string;
+  address: `0x${string}`;
+  minAmount: number;
+};
+
+export type Network = {
+  name: string;
+  explorerUrl: string;
+  assets: NetworkAsset[];
+};
